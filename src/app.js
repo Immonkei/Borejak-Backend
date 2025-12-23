@@ -9,7 +9,9 @@ const app = express();
 const corsOptions = {
   origin: [
     'https://borejak-backend.vercel.app',
-    'http://localhost:5000', // For local development
+    'http://localhost:5000',
+    'http://localhost:3000'
+    // For local development
     // Add your frontend URL here
   ],
   credentials: true,
