@@ -37,16 +37,24 @@ export async function listBloodMarket(filters = {}) {
 }
 
 // Get one
-export async function getBloodMarketById(id) {
-  const { data, error } = await supabase
+export async function getBloodMarketById(id, isAdmin = false) {
+  let query = supabase
     .from('blood_market')
     .select('*')
-    .eq('id', id)
-    .single();
+    .eq('id', id);
 
-  if (error) throw error;
+  if (!isAdmin) {
+    query = query.eq('status', 'open');
+  }
+
+  const { data, error } = await query.single();
+  if (error || !data) {
+    throw { status: 404, message: 'Not found' };
+  }
+
   return data;
 }
+
 
 // Close own post
 export async function closeBloodMarket(id, userId) {
@@ -59,7 +67,7 @@ export async function closeBloodMarket(id, userId) {
 
   if (findErr) throw findErr;
   if (existing.user_id !== userId) {
-    throw new Error('Forbidden');
+      throw { status: 403, message: 'Forbidden' };
   }
 
   const { data, error } = await supabase

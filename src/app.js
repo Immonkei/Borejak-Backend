@@ -11,8 +11,6 @@ const corsOptions = {
     'https://borejak-backend.vercel.app',
     'http://localhost:5000',
     'http://localhost:3000'
-    // For local development
-    // Add your frontend URL here
   ],
   credentials: true,
   optionsSuccessStatus: 200

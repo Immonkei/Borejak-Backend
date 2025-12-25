@@ -24,17 +24,26 @@ export async function unsubscribeEmail(email) {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return { email, is_active: false };
+    }
+    throw error;
+  }
+
   return data;
 }
+
 
 // Admin list
 export async function listSubscribers() {
   const { data, error } = await supabase
     .from('newsletter_subscribers')
     .select('*')
+    .order('is_active', { ascending: false })
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data;
 }
+

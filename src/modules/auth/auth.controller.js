@@ -20,6 +20,7 @@ export async function login(req, res, next) {
     const appToken = jwt.sign(
       {
         userId: user.id,
+        firebaseUid: user.firebase_uid,
         role: user.role
       },
       process.env.JWT_SECRET,

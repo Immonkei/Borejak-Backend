@@ -1,5 +1,6 @@
 import { updateUserProfile } from "./profile.service.js";
 import { getUserById } from "./profile.service.js";
+const VALID_BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 export async function completeProfile(req, res, next) {
   try {
@@ -13,12 +14,26 @@ export async function completeProfile(req, res, next) {
       date_of_birth,
       gender,
       address,
-      avatar_url
+      avatar_url,
     } = req.body;
 
     if (!full_name || !blood_type || !date_of_birth) {
       return res.status(400).json({
-        message: "full_name, blood_type, date_of_birth are required"
+        message: "full_name, blood_type, date_of_birth are required",
+      });
+    }
+    if (!VALID_BLOOD_TYPES.includes(blood_type)) {
+      return res.status(400).json({
+        message: "Invalid blood type",
+      });
+    }
+
+    const dob = new Date(date_of_birth);
+    const age = new Date().getFullYear() - dob.getFullYear();
+
+    if (age < 18) {
+      return res.status(400).json({
+        message: "User must be at least 18 years old",
       });
     }
 
@@ -30,7 +45,7 @@ export async function completeProfile(req, res, next) {
       date_of_birth,
       gender,
       address,
-      avatar_url
+      avatar_url,
     });
 
     res.json({
@@ -39,8 +54,8 @@ export async function completeProfile(req, res, next) {
         id: user.id,
         email: user.email,
         role: user.role,
-        profile_completed: true
-      }
+        profile_completed: true,
+      },
     });
   } catch (err) {
     next(err);
@@ -59,7 +74,7 @@ export async function getProfile(req, res, next) {
 
     res.json({
       success: true,
-      user
+      user,
     });
   } catch (err) {
     next(err);

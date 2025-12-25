@@ -8,6 +8,8 @@ import tipsRoutes from './modules/tips/tips.routes.js';
 import bloodMarketRoutes from './modules/blood-market/blood.routes.js';
 import newsletterRoutes from './modules/newsletter/newsletter.routes.js';
 import benefitsRoutes from './modules/benefits/benefits.routes.js';
+import donationsRoutes from './modules/donations/donations.routes.js';
+import usersRoutes from './modules/users/users.routes.js';
 
 
 
@@ -31,6 +33,8 @@ router.use('/tips', tipsRoutes);
 router.use('/blood-market', bloodMarketRoutes);
 router.use('/newsletter', newsletterRoutes);
 router.use('/benefits', benefitsRoutes);
+router.use('/donations', donationsRoutes);
+router.use('/users', usersRoutes);
 
 
 

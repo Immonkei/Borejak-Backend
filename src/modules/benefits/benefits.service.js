@@ -1,32 +1,40 @@
 import { supabase } from '../../config/supabase.js';
-
 export async function getUserBenefits(userId) {
   const { data: donations, error } = await supabase
     .from('donations')
-    .select('donation_date, status')
+    .select('donation_date')
     .eq('user_id', userId)
     .eq('status', 'completed');
 
   if (error) throw error;
 
-  const total = donations.length;
+  // Remove invalid records
+  const validDonations = donations.filter(
+    d => d.donation_date !== null
+  );
 
+  const total = validDonations.length;
+
+  // Last donation date
   let lastDonation = null;
   if (total > 0) {
-    lastDonation = donations
+    lastDonation = validDonations
       .map(d => new Date(d.donation_date))
       .sort((a, b) => b - a)[0];
   }
 
-  const now = new Date();
+  // Cooldown logic (90 days)
   const cooldownDays = 90;
+  const now = new Date();
 
   let eligible = true;
   let nextEligibleDate = null;
 
   if (lastDonation) {
     nextEligibleDate = new Date(lastDonation);
-    nextEligibleDate.setDate(nextEligibleDate.getDate() + cooldownDays);
+    nextEligibleDate.setDate(
+      nextEligibleDate.getDate() + cooldownDays
+    );
     eligible = now >= nextEligibleDate;
   }
 

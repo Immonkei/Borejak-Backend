@@ -29,7 +29,8 @@ export async function remove(req, res, next) {
 
 export async function list(req, res, next) {
   try {
-    const events = await service.listEvents();
+    const isAdmin = req.user?.role === 'admin';
+    const events = await service.listEvents(isAdmin);
     res.json({ success: true, data: events });
   } catch (err) {
     next(err);
@@ -38,7 +39,12 @@ export async function list(req, res, next) {
 
 export async function detail(req, res, next) {
   try {
-    const event = await service.getEvent(req.params.id);
+    const isAdmin = req.user?.role === 'admin';
+    const event = await service.getEvent(
+      req.params.id,
+      isAdmin
+    );
+
     res.json({ success: true, data: event });
   } catch (err) {
     next(err);

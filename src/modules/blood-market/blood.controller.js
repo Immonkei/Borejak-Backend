@@ -23,12 +23,19 @@ export async function list(req, res, next) {
 // 🌍 Public detail
 export async function detail(req, res, next) {
   try {
-    const item = await service.getBloodMarketById(req.params.id);
+    const isAdmin = req.user?.role === 'admin';
+
+    const item = await service.getBloodMarketById(
+      req.params.id,
+      isAdmin
+    );
+
     res.json({ success: true, data: item });
   } catch (err) {
     next(err);
   }
 }
+
 
 // 👤 User creates request/offer
 export async function create(req, res, next) {

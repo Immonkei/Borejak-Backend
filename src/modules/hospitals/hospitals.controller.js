@@ -39,7 +39,12 @@ export async function list(req, res, next) {
 
 export async function detail(req, res, next) {
   try {
-    const hospital = await service.getHospitalById(req.params.id);
+    const isAdmin = req.user?.role === 'admin';
+    const hospital = await service.getHospitalById(
+      req.params.id,
+      isAdmin
+    );
+
     res.json({ success: true, data: hospital });
   } catch (err) {
     next(err);

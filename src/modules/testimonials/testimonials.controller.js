@@ -7,12 +7,11 @@ export async function create(req, res, next) {
     const { userId } = req.user;
     const { content, rating } = req.body;
 
-    if (!content || !rating) {
-      return res.status(400).json({
-        message: 'content and rating are required'
-      });
-    }
-
+   if (!content || typeof rating !== 'number' || rating < 1 || rating > 5) {
+  return res.status(400).json({
+    message: 'content is required and rating must be between 1 and 5'
+  });
+}
     const testimonial = await service.createTestimonial(userId, { content, rating });
 
     res.status(201).json({ success: true, data: testimonial });

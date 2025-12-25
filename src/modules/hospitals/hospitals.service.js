@@ -25,16 +25,18 @@ export async function updateHospital(id, payload) {
   return data;
 }
 
-// Delete hospital
+// Soft delete hospital
 export async function deleteHospital(id) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('hospitals')
-    .delete()
-    .eq('id', id);
+    .update({ is_active: false })
+    .eq('id', id)
+    .select()
+    .single();
 
   if (error) throw error;
+  return data;
 }
-
 // Get all hospitals (admin or public)
 export async function getHospitals(isAdmin = false) {
   let query = supabase.from('hospitals').select('*');
@@ -48,14 +50,21 @@ export async function getHospitals(isAdmin = false) {
   return data;
 }
 
-// Get single hospital
-export async function getHospitalById(id) {
-  const { data, error } = await supabase
+export async function getHospitalById(id, isAdmin = false) {
+  let query = supabase
     .from('hospitals')
     .select('*')
-    .eq('id', id)
-    .single();
+    .eq('id', id);
 
-  if (error) throw error;
+  if (!isAdmin) {
+    query = query.eq('is_active', true);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    throw { status: 404, message: 'Hospital not found' };
+  }
+
   return data;
 }

@@ -27,12 +27,15 @@ export async function updateTip(id, payload) {
 
 // 🔒 Admin — delete tip
 export async function deleteTip(id) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('tips')
-    .delete()
-    .eq('id', id);
+    .update({ is_published: false })
+    .eq('id', id)
+    .select()
+    .single();
 
   if (error) throw error;
+  return data;
 }
 
 // 🌍 Public — published tips
