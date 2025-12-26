@@ -10,10 +10,7 @@ export default function auth(req, res, next) {
 
     const token = authHeader.split(' ')[1];
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-      issuer: 'blood-donation-api',
-      audience: 'blood-donation-client'
-    });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // 🔒 Normalize user object (VERY IMPORTANT)
     req.user = {
