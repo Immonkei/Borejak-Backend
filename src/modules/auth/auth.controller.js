@@ -3,20 +3,22 @@ import { verifyFirebaseToken, findOrCreateUser } from './auth.service.js';
 
 export async function login(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
+    const { firebaseToken } = req.body;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
+    if (!firebaseToken) {
+      return res.status(400).json({
         success: false,
-        message: "Missing Authorization header"
+        message: 'firebaseToken is required'
       });
     }
 
-    const idToken = authHeader.split(" ")[1];
+    // 🔐 Verify Firebase token
+    const firebaseUser = await verifyFirebaseToken(firebaseToken);
 
-    const firebaseUser = await verifyFirebaseToken(idToken);
+    // 👤 Find or create user
     const user = await findOrCreateUser(firebaseUser);
 
+    // 🎟️ Generate app JWT
     const appToken = jwt.sign(
       {
         userId: user.id,
@@ -24,7 +26,7 @@ export async function login(req, res, next) {
         role: user.role
       },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
     const profileCompleted = Boolean(
@@ -36,14 +38,15 @@ export async function login(req, res, next) {
     res.json({
       success: true,
       token: appToken,
+      profile_completed: profileCompleted,
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
-        profile_completed: profileCompleted
+        role: user.role
       }
     });
   } catch (err) {
     next(err);
   }
 }
+
