@@ -3,11 +3,13 @@ import auth from '../../middlewares/auth.js';
 import { requireRole } from '../../middlewares/role.js';
 import * as controller from './events.controller.js';
 import { registerForEvent } from '../donations/donations.controller.js';
+import authOptional from "../../middlewares/authOptional.js";
+
 
 const router = Router();
 
 // 🌍 Public
-router.get('/', controller.list);
+router.get('/', authOptional, controller.list);
 router.get('/:id', controller.detail);
 
 // 🔒 Admin
