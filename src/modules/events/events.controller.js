@@ -30,12 +30,15 @@ export async function remove(req, res, next) {
 export async function list(req, res, next) {
   try {
     const isAdmin = req.user?.role === 'admin';
-    const events = await service.listEvents(isAdmin);
+    const userId = req.user?.userId ?? null;
+
+    const events = await service.listEvents(isAdmin, userId);
     res.json({ success: true, data: events });
   } catch (err) {
     next(err);
   }
 }
+
 
 export async function detail(req, res, next) {
   try {

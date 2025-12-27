@@ -35,10 +35,14 @@ export async function deleteEvent(id) {
   return data;
 }
 
-export async function listEvents(isAdmin = false) {
+export async function listEvents(isAdmin = false, userId = null) {
   let query = supabase
     .from('events')
-    .select('*, hospitals(name)')
+    .select(`
+      *,
+      hospitals(name),
+      donations(user_id)
+    `)
     .order('event_date', { ascending: true });
 
   if (!isAdmin) {
@@ -48,7 +52,16 @@ export async function listEvents(isAdmin = false) {
   const { data, error } = await query;
   if (error) throw error;
 
-  return data;
+  // 🔑 ADD is_registered
+  return data.map(event => ({
+    ...event,
+    hospital_name: event.hospitals?.name ?? null,
+    is_registered: userId
+      ? event.donations?.some(d => d.user_id === userId)
+      : false,
+    donations: undefined,
+    hospitals: undefined,
+  }));
 }
 
 

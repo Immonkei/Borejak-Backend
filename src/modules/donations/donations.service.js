@@ -90,16 +90,29 @@ export async function listDonations() {
   const { data, error } = await supabase
     .from('donations')
     .select(`
-      *,
-      users(full_name, blood_type),
-      events(title, event_date),
+      id,
+      status,
+      quantity_ml,
+      created_at,
+      users(email, full_name),
+      events(title),
       hospitals(name)
     `)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data;
+
+  return data.map(d => ({
+    id: d.id,
+    status: d.status,
+    quantity_ml: d.quantity_ml,
+    user_email: d.users?.email ?? '-',
+    user_name: d.users?.full_name ?? '-',
+    event_title: d.events?.title ?? '-',
+    hospital_name: d.hospitals?.name ?? '-',
+  }));
 }
+
 
 // ===============================
 // ADMIN: UPDATE DONATION STATUS
