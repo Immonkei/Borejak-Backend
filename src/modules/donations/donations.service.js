@@ -120,25 +120,53 @@ export async function listDonations() {
 export async function updateDonationStatus(id, payload) {
   const { status, quantity_ml, notes } = payload;
 
-  if (!['completed', 'rejected'].includes(status)) {
+  const allowedStatuses = ['approved', 'rejected', 'completed'];
+  if (!allowedStatuses.includes(status)) {
     throw { status: 400, message: 'Invalid donation status' };
   }
 
+  // 1️⃣ Get current donation
+  const { data: donation, error: fetchError } = await supabase
+    .from('donations')
+    .select('status')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !donation) {
+    throw { status: 404, message: 'Donation not found' };
+  }
+
+  // 2️⃣ Transition rules
+  if (donation.status === 'pending') {
+    if (!['approved', 'rejected'].includes(status)) {
+      throw { status: 400, message: 'Invalid status transition' };
+    }
+  }
+
+  if (donation.status === 'approved') {
+    if (status !== 'completed') {
+      throw { status: 400, message: 'Invalid status transition' };
+    }
+  }
+
+  if (donation.status === 'completed') {
+    throw { status: 400, message: 'Donation already completed' };
+  }
+
+  // 3️⃣ Validate completed
   const updateData = { status };
 
   if (status === 'completed') {
     if (!quantity_ml || quantity_ml <= 0) {
       throw { status: 400, message: 'quantity_ml is required' };
     }
-
     updateData.quantity_ml = quantity_ml;
     updateData.donation_date = new Date();
   }
 
-  if (notes) {
-    updateData.notes = notes;
-  }
+  if (notes) updateData.notes = notes;
 
+  // 4️⃣ Update
   const { data, error } = await supabase
     .from('donations')
     .update(updateData)
