@@ -59,3 +59,27 @@ export async function remove(req, res, next) {
     next(err);
   }
 }
+
+
+// 🔒 Admin: update testimonial
+export async function update(req, res, next) {
+  try {
+    const { content, rating } = req.body;
+
+    if (!content || typeof rating !== "number") {
+      return res.status(400).json({
+        message: "content and rating are required",
+      });
+    }
+
+    const testimonial = await service.updateTestimonial(
+      req.params.id,
+      { content, rating }
+    );
+
+    res.json({ success: true, data: testimonial });
+  } catch (err) {
+    next(err);
+  }
+}
+

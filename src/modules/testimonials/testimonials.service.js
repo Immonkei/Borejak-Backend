@@ -53,6 +53,26 @@ export async function approveTestimonial(id) {
   return data;
 }
 
+// 🔒 Admin: update testimonial
+export async function updateTestimonial(id, payload) {
+  const { content, rating } = payload;
+
+  const { data, error } = await supabase
+    .from("testimonials")
+    .update({
+      content,
+      rating,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+
 // Admin: delete testimonial
 export async function deleteTestimonial(id) {
   const { error } = await supabase
