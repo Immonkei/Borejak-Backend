@@ -38,11 +38,11 @@ export async function login(req, res, next) {
     res.json({
       success: true,
       token: appToken,
-      profile_completed: profileCompleted,
       user: {
         id: user.id,
         email: user.email,
-        role: user.role
+        role: user.role,
+        profile_completed: profileCompleted
       }
     });
   } catch (err) {
