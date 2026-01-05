@@ -93,9 +93,12 @@ export async function listDonations() {
       id,
       status,
       quantity_ml,
+      blood_type,
+      event_id,
+      hospital_id,
       created_at,
       users(email, full_name),
-      events(title),
+      events(id, title),
       hospitals(name)
     `)
     .order('created_at', { ascending: false });
@@ -106,13 +109,16 @@ export async function listDonations() {
     id: d.id,
     status: d.status,
     quantity_ml: d.quantity_ml,
+    blood_type: d.blood_type,
+    event_id: d.event_id,           // ADD THIS
+    hospital_id: d.hospital_id,     // ADD THIS
+    created_at: d.created_at,
     user_email: d.users?.email ?? '-',
     user_name: d.users?.full_name ?? '-',
     event_title: d.events?.title ?? '-',
     hospital_name: d.hospitals?.name ?? '-',
   }));
 }
-
 
 // ===============================
 // ADMIN: UPDATE DONATION STATUS
