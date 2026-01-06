@@ -9,14 +9,18 @@ const app = express();
 const corsOptions = {
   origin: [
     'https://borejak-backend.vercel.app',
+    'https://borejak.vercel.app',
     'http://localhost:5000',
     'http://localhost:3000'
   ],
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // 🔥 REQUIRED FOR PREFLIGHT
 app.use(express.json());
 
 // Root route - Add this!
