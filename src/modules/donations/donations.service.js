@@ -4,7 +4,7 @@ import { supabase } from '../../config/supabase.js';
 // USER: CREATE DONATION
 // ===============================
 export async function createDonation(userId, payload) {
-  const { event_id } = payload;
+  const { event_id, quantity_ml } = payload;
 
   // 1️⃣ Get user blood type
   const { data: user, error: userError } = await supabase
@@ -32,9 +32,13 @@ export async function createDonation(userId, payload) {
     throw { status: 400, message: 'Event not available' };
   }
 
-  if (event.registered_count >= event.max_participants) {
-    throw { status: 400, message: 'Event is full' };
-  }
+  if (
+  event.max_participants !== null &&
+  event.registered_count >= event.max_participants
+) {
+  throw { status: 400, message: 'Event is full' };
+}
+
 
   // 3️⃣ Create donation (status = pending)
   const { data: donation, error } = await supabase
@@ -44,6 +48,7 @@ export async function createDonation(userId, payload) {
       event_id,
       hospital_id: event.hospital_id,
       blood_type: user.blood_type,
+      quantity_ml,
       status: 'pending'
     })
     .select()
