@@ -50,3 +50,42 @@ export async function login(req, res, next) {
   }
 }
 
+export async function register(req, res, next) {
+  try {
+    const { firebaseToken, phone_number } = req.body;
+
+    if (!phone_number) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required"
+      });
+    }
+
+    const firebaseUser = await verifyFirebaseToken(firebaseToken);
+
+    // 🔑 Pass phone_number ONLY here
+    const user = await findOrCreateUser(firebaseUser, {
+      phone_number
+    });
+
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        firebaseUid: user.firebase_uid,
+        role: user.role
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
