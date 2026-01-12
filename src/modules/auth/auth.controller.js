@@ -1,11 +1,15 @@
 import jwt from "jsonwebtoken";
 import { verifyFirebaseToken, findOrCreateUser } from "./auth.service.js";
 
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined in environment variables");
+}
+
 function serializeUser(user) {
   return {
     id: user.id,
     email: user.email,
-    role: user.role,
+    role: user.role || "user",
     profile_completed: Boolean(
       user.full_name && user.blood_type && user.date_of_birth
     ),
@@ -23,25 +27,17 @@ export async function login(req, res, next) {
       });
     }
 
-    // 🔐 Verify Firebase token
     const firebaseUser = await verifyFirebaseToken(firebaseToken);
-
-    // 👤 Find or create user
     const user = await findOrCreateUser(firebaseUser);
 
-    // 🎟️ Generate app JWT
     const appToken = jwt.sign(
       {
         userId: user.id,
         firebaseUid: user.firebase_uid,
-        role: user.role,
+        role: user.role || "user",
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
-    );
-
-    const profileCompleted = Boolean(
-      user.full_name && user.blood_type && user.date_of_birth
     );
 
     res.json({
@@ -66,17 +62,13 @@ export async function register(req, res, next) {
     }
 
     const firebaseUser = await verifyFirebaseToken(firebaseToken);
-
-    // 🔑 Pass phone_number ONLY here
-    const user = await findOrCreateUser(firebaseUser, {
-      phone_number,
-    });
+    const user = await findOrCreateUser(firebaseUser, { phone_number });
 
     const token = jwt.sign(
       {
         userId: user.id,
         firebaseUid: user.firebase_uid,
-        role: user.role,
+        role: user.role || "user",
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
