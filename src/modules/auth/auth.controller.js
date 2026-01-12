@@ -1,5 +1,16 @@
-import jwt from 'jsonwebtoken';
-import { verifyFirebaseToken, findOrCreateUser } from './auth.service.js';
+import jwt from "jsonwebtoken";
+import { verifyFirebaseToken, findOrCreateUser } from "./auth.service.js";
+
+function serializeUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    profile_completed: Boolean(
+      user.full_name && user.blood_type && user.date_of_birth
+    ),
+  };
+}
 
 export async function login(req, res, next) {
   try {
@@ -8,7 +19,7 @@ export async function login(req, res, next) {
     if (!firebaseToken) {
       return res.status(400).json({
         success: false,
-        message: 'firebaseToken is required'
+        message: "firebaseToken is required",
       });
     }
 
@@ -23,27 +34,20 @@ export async function login(req, res, next) {
       {
         userId: user.id,
         firebaseUid: user.firebase_uid,
-        role: user.role
+        role: user.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
     );
 
     const profileCompleted = Boolean(
-      user.full_name &&
-      user.blood_type &&
-      user.date_of_birth
+      user.full_name && user.blood_type && user.date_of_birth
     );
 
     res.json({
       success: true,
       token: appToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        profile_completed: profileCompleted
-      }
+      user: serializeUser(user),
     });
   } catch (err) {
     next(err);
@@ -57,7 +61,7 @@ export async function register(req, res, next) {
     if (!phone_number) {
       return res.status(400).json({
         success: false,
-        message: "Phone number is required"
+        message: "Phone number is required",
       });
     }
 
@@ -65,14 +69,14 @@ export async function register(req, res, next) {
 
     // 🔑 Pass phone_number ONLY here
     const user = await findOrCreateUser(firebaseUser, {
-      phone_number
+      phone_number,
     });
 
     const token = jwt.sign(
       {
         userId: user.id,
         firebaseUid: user.firebase_uid,
-        role: user.role
+        role: user.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -81,11 +85,9 @@ export async function register(req, res, next) {
     res.json({
       success: true,
       token,
-      user
+      user: serializeUser(user),
     });
   } catch (err) {
     next(err);
   }
 }
-
-
