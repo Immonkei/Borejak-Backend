@@ -8,41 +8,44 @@ export async function verifyFirebaseToken(idToken) {
 
 // 👤 Find or create user in Supabase
 export async function findOrCreateUser(firebaseUser, extraData = {}) {
-  const {
-    uid,
-    email,
-    firebase: { sign_in_provider }
-  } = firebaseUser;
+  const uid = firebaseUser.uid;
+  const email = firebaseUser.email || null;
+
+  const signInProvider =
+    firebaseUser.firebase?.sign_in_provider || "password";
 
   const providerMap = {
-    phone: 'phone',
-    password: 'email',
-    'google.com': 'google',
-    'facebook.com': 'facebook'
+    phone: "phone",
+    password: "email",
+    "google.com": "google",
+    "facebook.com": "facebook",
   };
 
-  const authProvider = providerMap[sign_in_provider] || 'email';
+  const authProvider = providerMap[signInProvider] || "email";
 
-  // 🔒 SAFE UPSERT DATA (AUTH ONLY)
   const upsertData = {
     firebase_uid: uid,
-    email: email || null,
+    email,
     auth_provider: authProvider,
-    is_verified: true
+    is_verified: true,
   };
 
-  // ✅ ONLY set phone number if explicitly provided (REGISTER / PROFILE)
+  // 🔒 Only write phone if explicitly provided
   if (extraData.phone_number) {
     upsertData.phone_number = extraData.phone_number;
   }
 
   const { data, error } = await supabase
-    .from('users')
-    .upsert(upsertData, { onConflict: 'firebase_uid' })
+    .from("users")
+    .upsert(upsertData, { onConflict: "firebase_uid" })
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("Supabase upsert error:", error);
+    throw error;
+  }
 
   return data;
 }
+
