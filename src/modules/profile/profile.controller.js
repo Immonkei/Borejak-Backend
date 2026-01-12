@@ -54,6 +54,7 @@ export async function completeProfile(req, res, next) {
         id: user.id,
         email: user.email,
         role: user.role,
+        phone_number: user.phone_number, 
         profile_completed: true,
       },
     });
