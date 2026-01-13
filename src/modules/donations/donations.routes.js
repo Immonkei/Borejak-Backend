@@ -8,6 +8,8 @@ const router = Router();
 // 👤 USER
 router.post('/', auth, controller.create);
 router.get('/me', auth, controller.myDonations);
+router.get('/eligibility', auth, controller.eligibility);
+
 
 // 🔥 EVENT REGISTRATION (NEW)
 router.post(
@@ -19,5 +21,6 @@ router.post(
 // 🧑‍⚕️ ADMIN
 router.get('/', auth, requireRole('admin'), controller.list);
 router.put('/:id/status', auth, requireRole('admin'), controller.updateStatus);
+
 
 export default router;

@@ -73,3 +73,13 @@ export async function registerForEvent(req, res, next) {
     next(err);
   }
 }
+
+export async function eligibility(req, res, next) {
+  try {
+    const data = await service.checkDonationEligibility(req.user.userId);
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
