@@ -6,10 +6,10 @@ import { supabase } from "../../config/supabase.js";
 export async function createDonation(userId, payload) {
   const { event_id, quantity_ml } = payload;
 
-  // 1️⃣ Get user blood type
+  // 1️⃣ Get user blood type + last_donation_date
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("blood_type")
+    .select("blood_type, last_donation_date")
     .eq("id", userId)
     .single();
 
@@ -17,7 +17,21 @@ export async function createDonation(userId, payload) {
     throw { status: 400, message: "User blood type not set" };
   }
 
-  // 2️⃣ Get event
+  // 🔒 90-DAY DONATION RULE (USERS TABLE)
+  if (user.last_donation_date) {
+    const lastDonation = new Date(user.last_donation_date);
+    const daysPassed =
+      (Date.now() - lastDonation.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (daysPassed < 90) {
+      throw {
+        status: 400,
+        message: "You must wait 90 days between donations",
+      };
+    }
+  }
+
+  // 2️⃣ Get event (event-based donation)
   const { data: event, error: eventError } = await supabase
     .from("events")
     .select("id, status, hospital_id, max_participants, registered_count")
@@ -39,26 +53,6 @@ export async function createDonation(userId, payload) {
     throw { status: 400, message: "Event is full" };
   }
 
-  // 🚫 BLOCK donation if user donated in last 3 months
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
-  const { data: recentDonation } = await supabase
-    .from("donations")
-    .select("id, donation_date")
-    .eq("user_id", userId)
-    .eq("status", "completed")
-    .gte("donation_date", threeMonthsAgo)
-    .limit(1)
-    .maybeSingle();
-
-  if (recentDonation) {
-    throw {
-      status: 400,
-      message: "You can donate only once every 3 months",
-    };
-  }
-
   // 3️⃣ Create donation (status = pending)
   const { data: donation, error } = await supabase
     .from("donations")
@@ -74,14 +68,13 @@ export async function createDonation(userId, payload) {
     .single();
 
   if (error) {
-    // unique (user_id, event_id)
     if (error.code === "23505") {
       throw { status: 400, message: "Already registered for this event" };
     }
     throw error;
   }
 
-  // 4️⃣ Increment registered_count (atomic)
+  // 4️⃣ Increment registered_count
   await supabase.rpc("increment_event_registration", {
     event_id,
   });
@@ -89,27 +82,32 @@ export async function createDonation(userId, payload) {
   return donation;
 }
 
+// ===============================
+// USER: CHECK DONATION ELIGIBILITY
+// ===============================
 export async function checkDonationEligibility(userId) {
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("last_donation_date")
+    .eq("id", userId)
+    .single();
 
-  const { data } = await supabase
-    .from("donations")
-    .select("donation_date")
-    .eq("user_id", userId)
-    .eq("status", "completed")
-    .gte("donation_date", threeMonthsAgo)
-    .limit(1)
-    .maybeSingle();
+  if (error) throw error;
 
-  if (data) {
-    const nextDate = new Date(data.donation_date);
-    nextDate.setMonth(nextDate.getMonth() + 3);
+  if (user?.last_donation_date) {
+    const lastDonation = new Date(user.last_donation_date);
+    const daysPassed =
+      (Date.now() - lastDonation.getTime()) / (1000 * 60 * 60 * 24);
 
-    return {
-      canDonate: false,
-      nextDonationDate: nextDate,
-    };
+    if (daysPassed < 90) {
+      const nextDate = new Date(lastDonation);
+      nextDate.setDate(nextDate.getDate() + 90);
+
+      return {
+        canDonate: false,
+        nextDonationDate: nextDate,
+      };
+    }
   }
 
   return { canDonate: true };
@@ -164,8 +162,8 @@ export async function listDonations() {
     status: d.status,
     quantity_ml: d.quantity_ml,
     blood_type: d.blood_type,
-    event_id: d.event_id, // ADD THIS
-    hospital_id: d.hospital_id, // ADD THIS
+    event_id: d.event_id,
+    hospital_id: d.hospital_id,
     created_at: d.created_at,
     user_email: d.users?.email ?? "-",
     user_name: d.users?.full_name ?? "-",
@@ -185,10 +183,10 @@ export async function updateDonationStatus(id, payload) {
     throw { status: 400, message: "Invalid donation status" };
   }
 
-  // 1️⃣ Get current donation
+  // 1️⃣ Fetch donation (include user_id)
   const { data: donation, error: fetchError } = await supabase
     .from("donations")
-    .select("status")
+    .select("status, user_id")
     .eq("id", id)
     .single();
 
@@ -196,48 +194,38 @@ export async function updateDonationStatus(id, payload) {
     throw { status: 404, message: "Donation not found" };
   }
 
-  // 🚫 Prevent completing donation before event date
+  // 🚫 Prevent completing donation before event date (ONLY if event exists)
   if (status === "completed") {
-    const { data: donationWithEvent, error } = await supabase
+    const { data: donationWithEvent } = await supabase
       .from("donations")
-      .select(
-        `
-      events(event_date)
-    `
-      )
+      .select(`events(event_date)`)
       .eq("id", id)
       .single();
 
-    if (error || !donationWithEvent?.events?.event_date) {
-      throw { status: 400, message: "Event date not found" };
-    }
-
-    if (new Date(donationWithEvent.events.event_date) > new Date()) {
-      throw {
-        status: 400,
-        message: "Cannot complete donation before event date",
-      };
+    if (donationWithEvent?.events?.event_date) {
+      if (new Date(donationWithEvent.events.event_date) > new Date()) {
+        throw {
+          status: 400,
+          message: "Cannot complete donation before event date",
+        };
+      }
     }
   }
 
-  // 2️⃣ Transition rules
-  if (donation.status === "pending") {
-    if (!["approved", "rejected"].includes(status)) {
-      throw { status: 400, message: "Invalid status transition" };
-    }
+  // 2️⃣ Status transition rules
+  if (donation.status === "pending" && !["approved", "rejected"].includes(status)) {
+    throw { status: 400, message: "Invalid status transition" };
   }
 
-  if (donation.status === "approved") {
-    if (status !== "completed") {
-      throw { status: 400, message: "Invalid status transition" };
-    }
+  if (donation.status === "approved" && status !== "completed") {
+    throw { status: 400, message: "Invalid status transition" };
   }
 
   if (donation.status === "completed") {
     throw { status: 400, message: "Donation already completed" };
   }
 
-  // 3️⃣ Validate completed
+  // 3️⃣ Prepare update
   const updateData = { status };
 
   if (status === "completed") {
@@ -250,7 +238,7 @@ export async function updateDonationStatus(id, payload) {
 
   if (notes) updateData.notes = notes;
 
-  // 4️⃣ Update
+  // 4️⃣ Update donation
   const { data, error } = await supabase
     .from("donations")
     .update(updateData)
@@ -259,5 +247,14 @@ export async function updateDonationStatus(id, payload) {
     .single();
 
   if (error) throw error;
+
+  // ✅ UPDATE USER LAST DONATION DATE (CRITICAL)
+  if (status === "completed") {
+    await supabase
+      .from("users")
+      .update({ last_donation_date: new Date() })
+      .eq("id", donation.user_id);
+  }
+
   return data;
 }
