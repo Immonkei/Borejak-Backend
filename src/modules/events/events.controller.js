@@ -39,13 +39,15 @@ export async function list(req, res, next) {
   }
 }
 
-
 export async function detail(req, res, next) {
   try {
     const isAdmin = req.user?.role === 'admin';
+    const userId = req.user?.userId ?? null; // 🔧 ADD userId
+
     const event = await service.getEvent(
       req.params.id,
-      isAdmin
+      isAdmin,
+      userId // 🔧 PASS userId to service
     );
 
     res.json({ success: true, data: event });

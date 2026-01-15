@@ -10,17 +10,11 @@ router.post('/', auth, controller.create);
 router.get('/me', auth, controller.myDonations);
 router.get('/eligibility', auth, controller.eligibility);
 
-
-// 🔥 EVENT REGISTRATION (NEW)
-router.post(
-  '/events/:id/register',
-  auth,
-  controller.registerForEvent
-);
+// 🔧 REMOVED duplicate event registration route
+// Event registration is now only available at: POST /events/:id/register
 
 // 🧑‍⚕️ ADMIN
 router.get('/', auth, requireRole('admin'), controller.list);
 router.put('/:id/status', auth, requireRole('admin'), controller.updateStatus);
-
 
 export default router;

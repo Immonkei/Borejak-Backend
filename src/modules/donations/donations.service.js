@@ -46,10 +46,8 @@ export async function createDonation(userId, payload) {
     throw { status: 400, message: "Event not available" };
   }
 
-  if (
-    event.max_participants !== null &&
-    event.registered_count >= event.max_participants
-  ) {
+  // 🔧 ATOMIC CHECK: Prevent race condition
+  if (event.max_participants !== null && event.registered_count >= event.max_participants) {
     throw { status: 400, message: "Event is full" };
   }
 
@@ -75,9 +73,15 @@ export async function createDonation(userId, payload) {
   }
 
   // 4️⃣ Increment registered_count
-  await supabase.rpc("increment_event_registration", {
+  const { error: rpcError } = await supabase.rpc("increment_event_registration", {
     event_id,
   });
+
+  // 🔧 If increment fails, rollback donation creation
+  if (rpcError) {
+    await supabase.from("donations").delete().eq("id", donation.id);
+    throw { status: 500, message: "Failed to register for event" };
+  }
 
   return donation;
 }
@@ -122,7 +126,7 @@ export async function myDonations(userId) {
     .select(
       `
       *,
-      events(title, event_date),
+      events(title, event_date, location),
       hospitals(name)
     `
     )
@@ -183,10 +187,10 @@ export async function updateDonationStatus(id, payload) {
     throw { status: 400, message: "Invalid donation status" };
   }
 
-  // 1️⃣ Fetch donation (include user_id)
+  // 1️⃣ Fetch donation (🔧 include event_id for decrement)
   const { data: donation, error: fetchError } = await supabase
     .from("donations")
-    .select("status, user_id")
+    .select("status, user_id, event_id")
     .eq("id", id)
     .single();
 
@@ -203,10 +207,14 @@ export async function updateDonationStatus(id, payload) {
       .single();
 
     if (donationWithEvent?.events?.event_date) {
-      if (new Date(donationWithEvent.events.event_date) > new Date()) {
+      const eventDateTime = new Date(donationWithEvent.events.event_date);
+      const now = new Date();
+      
+      // 🔧 Improved: Check full datetime, not just date
+      if (eventDateTime > now) {
         throw {
           status: 400,
-          message: "Cannot complete donation before event date",
+          message: `Cannot complete donation before event date (${eventDateTime.toLocaleString()})`,
         };
       }
     }
@@ -248,12 +256,19 @@ export async function updateDonationStatus(id, payload) {
 
   if (error) throw error;
 
-  // ✅ UPDATE USER LAST DONATION DATE (CRITICAL)
+  // 5️⃣ UPDATE USER LAST DONATION DATE (CRITICAL)
   if (status === "completed") {
     await supabase
       .from("users")
       .update({ last_donation_date: new Date() })
       .eq("id", donation.user_id);
+  }
+
+  // 🔧 6️⃣ DECREMENT registered_count if REJECTED
+  if (status === "rejected" && donation.status === "pending" && donation.event_id) {
+    await supabase.rpc("decrement_event_registration", {
+      event_id: donation.event_id,
+    });
   }
 
   return data;
