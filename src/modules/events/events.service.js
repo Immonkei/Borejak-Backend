@@ -1,5 +1,8 @@
 import { supabase } from '../../config/supabase.js';
 
+/* =====================================================
+   CREATE EVENT (ADMIN)
+===================================================== */
 export async function createEvent(payload) {
   const { data, error } = await supabase
     .from('events')
@@ -11,6 +14,9 @@ export async function createEvent(payload) {
   return data;
 }
 
+/* =====================================================
+   UPDATE EVENT (ADMIN)
+===================================================== */
 export async function updateEvent(id, payload) {
   const { data, error } = await supabase
     .from('events')
@@ -23,6 +29,9 @@ export async function updateEvent(id, payload) {
   return data;
 }
 
+/* =====================================================
+   DELETE EVENT (ADMIN – soft delete)
+===================================================== */
 export async function deleteEvent(id) {
   const { data, error } = await supabase
     .from('events')
@@ -35,6 +44,10 @@ export async function deleteEvent(id) {
   return data;
 }
 
+/* =====================================================
+   LIST EVENTS (PUBLIC / USER / ADMIN)
+   ✅ FIXED: dynamic registered_count
+===================================================== */
 export async function listEvents(isAdmin = false, userId = null) {
   let query = supabase
     .from('events')
@@ -52,21 +65,39 @@ export async function listEvents(isAdmin = false, userId = null) {
   const { data, error } = await query;
   if (error) throw error;
 
-  // 🔧 ADD is_registered AND user_registration_status
-  return data.map(event => ({
-    ...event,
-    hospital_name: event.hospitals?.name ?? null,
-    is_registered: userId
-      ? event.donations?.some(d => d.user_id === userId)
-      : false,
-    user_registration_status: userId
-      ? event.donations?.find(d => d.user_id === userId)?.status ?? null
-      : null,
-    donations: undefined,
-    hospitals: undefined,
-  }));
+  return data.map(event => {
+    // ✅ PARTICIPANTS = approved + completed ONLY
+    const participants =
+      event.donations?.filter(d =>
+        ['approved', 'completed'].includes(d.status)
+      ) ?? [];
+
+    const userDonation = userId
+      ? event.donations?.find(d => d.user_id === userId)
+      : null;
+
+    return {
+      ...event,
+
+      hospital_name: event.hospitals?.name ?? null,
+
+      // ✅ THIS IS WHAT FRONTEND NEEDS
+      registered_count: participants.length,
+
+      is_registered: Boolean(userDonation),
+      user_registration_status: userDonation?.status ?? null,
+
+      // cleanup
+      donations: undefined,
+      hospitals: undefined,
+    };
+  });
 }
 
+/* =====================================================
+   GET SINGLE EVENT (DETAIL PAGE)
+   ✅ FIXED: dynamic registered_count
+===================================================== */
 export async function getEvent(id, isAdmin = false, userId = null) {
   let query = supabase
     .from('events')
@@ -87,16 +118,28 @@ export async function getEvent(id, isAdmin = false, userId = null) {
     throw { status: 404, message: 'Event not found' };
   }
 
-  // 🔧 ADD user registration status
+  // ✅ PARTICIPANTS = approved + completed ONLY
+  const participants =
+    data.donations?.filter(d =>
+      ['approved', 'completed'].includes(d.status)
+    ) ?? [];
+
+  const userDonation = userId
+    ? data.donations?.find(d => d.user_id === userId)
+    : null;
+
   return {
     ...data,
+
     hospital_name: data.hospitals?.name ?? null,
-    is_registered: userId
-      ? data.donations?.some(d => d.user_id === userId)
-      : false,
-    user_registration_status: userId
-      ? data.donations?.find(d => d.user_id === userId)?.status ?? null
-      : null,
+
+    // ✅ THIS FIXES THE COUNT
+    registered_count: participants.length,
+
+    is_registered: Boolean(userDonation),
+    user_registration_status: userDonation?.status ?? null,
+
+    // cleanup
     donations: undefined,
     hospitals: undefined,
   };
