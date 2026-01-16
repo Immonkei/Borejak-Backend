@@ -198,27 +198,7 @@ export async function updateDonationStatus(id, payload) {
     throw { status: 404, message: "Donation not found" };
   }
 
-  // 🚫 Prevent completing donation before event date (ONLY if event exists)
-  if (status === "completed") {
-    const { data: donationWithEvent } = await supabase
-      .from("donations")
-      .select(`events(event_date)`)
-      .eq("id", id)
-      .single();
-
-    if (donationWithEvent?.events?.event_date) {
-      const eventDateTime = new Date(donationWithEvent.events.event_date);
-      const now = new Date();
-      
-      // 🔧 Improved: Check full datetime, not just date
-      if (eventDateTime > now) {
-        throw {
-          status: 400,
-          message: `Cannot complete donation before event date (${eventDateTime.toLocaleString()})`,
-        };
-      }
-    }
-  }
+ 
 
   // 2️⃣ Status transition rules
   if (donation.status === "pending" && !["approved", "rejected"].includes(status)) {
