@@ -10,7 +10,7 @@ export async function uploadEventImage(req, res, next) {
     }
 
     const file = req.file;
-    const ext = file.originalname.split(".").pop();
+    const ext = file.originalname.split(".").pop().toLowerCase();
     const fileName = `${Date.now()}.${ext}`;
     const path = `events/${fileName}`;
 
@@ -18,9 +18,16 @@ export async function uploadEventImage(req, res, next) {
       .from("event-images")
       .upload(path, file.buffer, {
         contentType: file.mimetype,
+        upsert: false,
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase upload error:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
 
     const { data } = supabase.storage
       .from("event-images")
