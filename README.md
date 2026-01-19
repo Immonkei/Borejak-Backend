@@ -1,23 +1,27 @@
 # 🩸 Blood Donation Platform – Backend API
 
-This repository contains the **backend API** for the Blood Donation Platform. The system is built with **Node.js + Express**, uses **Firebase Authentication** for identity, and **Supabase (PostgreSQL)** as the main database.
+This repository contains the **backend API** for the **Blood Donation Platform (Borejak)**.
+The system is built with **Node.js + Express**, uses **Firebase Authentication** for identity management, and **Supabase (PostgreSQL)** as the primary database.
 
-This README explains:
-- How authentication works
-- All available API endpoints
-- Who can access each endpoint
-- How to test everything with Postman
+This backend is responsible for:
+
+* Authentication & authorization
+* Business logic (donation rules, roles, eligibility)
+* Secure API endpoints
+* Data persistence and validation
 
 ---
 
 ## 🌐 Base URL
 
-```
-https://borejak-backend.vercel.app
+### Production
 
 ```
+https://borejak-backend.vercel.app/api
+```
 
-For local development:
+### Local Development
+
 ```
 http://localhost:5000/api
 ```
@@ -26,38 +30,44 @@ http://localhost:5000/api
 
 ## 🔐 Authentication (IMPORTANT)
 
-### 🔑 Auth Strategy
-This backend **does NOT have a traditional register endpoint**.
+### 🔑 Authentication Strategy
 
-User registration and login are handled by **Firebase Authentication**.
+This backend **does NOT implement traditional email/password authentication**.
 
-### Auth Flow
+All user authentication is handled by **Firebase Authentication**.
+
+### 🔄 Authentication Flow
+
 ```
-Frontend → Firebase Auth (login / signup)
+Frontend → Firebase Authentication (Login / Signup)
         ↓ Firebase ID Token
 POST /auth/login
         ↓
-Backend verifies token
+Backend verifies Firebase token
 Creates user in database if first login
-Returns APP JWT
+Returns Application JWT (APP_JWT)
 ```
 
-The returned **APP JWT** is required for all protected endpoints.
+The returned **APP_JWT** must be used for all protected API requests.
 
-### Authorization Header
-For protected endpoints, include:
+### 🔒 Authorization Header
+
+Include this header for all protected endpoints:
+
 ```
-Authorization: Bearer <APP_JWT_TOKEN>
+Authorization: Bearer <APP_JWT>
 ```
 
 ---
 
-## 1️⃣ Auth Module
+## 1️⃣ Authentication Module
 
 ### POST `/auth/login`
-Login or auto-register a user via Firebase.
 
-**Body**
+Login or auto-register a user using a Firebase ID token.
+
+**Request Body**
+
 ```json
 {
   "firebaseToken": "FIREBASE_ID_TOKEN"
@@ -65,6 +75,7 @@ Login or auto-register a user via Firebase.
 ```
 
 **Response**
+
 ```json
 {
   "success": true,
@@ -83,12 +94,15 @@ Login or auto-register a user via Firebase.
 ## 2️⃣ Profile Module
 
 ### GET `/profile` (Auth)
-Get current user profile.
+
+Retrieve the authenticated user profile.
 
 ### POST `/profile` (Auth)
-Complete or update profile.
 
-**Body**
+Create or update user profile.
+
+**Request Body**
+
 ```json
 {
   "full_name": "John Doe",
@@ -101,31 +115,38 @@ Complete or update profile.
 }
 ```
 
-**Rules**
-- User must be **18+ years old**
-- `blood_type` must be a valid enum
+**Validation Rules**
+
+* User must be **18+ years old**
+* `blood_type` must be a valid enum
 
 ---
 
 ## 3️⃣ Events Module
 
 ### GET `/events`
+
 List public events.
 
-Public users only see events with status:
-- `upcoming`
-- `ongoing`
+Visible statuses:
+
+* `upcoming`
+* `ongoing`
 
 ### GET `/events/:id`
-Get event detail.
+
+Get event details.
 
 ### POST `/events` (Admin)
-Create event.
+
+Create a new event.
 
 ### PUT `/events/:id` (Admin)
-Update event.
+
+Update event details.
 
 ### DELETE `/events/:id` (Admin)
+
 Cancel event (soft delete → `status = cancelled`).
 
 ---
@@ -133,29 +154,35 @@ Cancel event (soft delete → `status = cancelled`).
 ## 🔥 Event Registration
 
 ### POST `/events/:id/register` (Auth)
+
 Register current user for an event.
 
-This internally creates a **donation record** with status `pending`.
+This action automatically creates a **donation record** with status `pending`.
 
 **Rules**
-- Event must be `upcoming` or `ongoing`
-- User cannot register twice
-- Event must not be full
+
+* Event must be `upcoming` or `ongoing`
+* User cannot register more than once
+* Event must not exceed capacity
 
 ---
 
 ## 4️⃣ Donations Module
 
 ### GET `/donations/me` (Auth)
-Get current user donations.
+
+Retrieve donation history for the current user.
 
 ### GET `/donations` (Admin)
-List all donations.
+
+List all donation records.
 
 ### PUT `/donations/:id/status` (Admin)
+
 Update donation status.
 
-**Body**
+**Request Body**
+
 ```json
 {
   "status": "completed",
@@ -169,9 +196,11 @@ Update donation status.
 ## 5️⃣ Benefits Module
 
 ### GET `/benefits/me` (Auth)
-Get donation benefits.
+
+Retrieve donation benefits and eligibility.
 
 **Response**
+
 ```json
 {
   "total_donations": 3,
@@ -186,9 +215,11 @@ Get donation benefits.
 ## 6️⃣ Blood Market Module
 
 ### GET `/blood`
-List blood requests / offers (public).
 
-Query filters:
+List public blood requests and offers.
+
+**Query Filters**
+
 ```
 ?type=request
 ?blood_type=O+
@@ -196,25 +227,31 @@ Query filters:
 ```
 
 ### POST `/blood` (Auth)
-Create blood request or offer.
+
+Create a blood request or donation offer.
 
 ### POST `/blood/:id/close` (Auth)
-Close own post.
+
+Close own blood market post.
 
 ### DELETE `/blood/:id` (Admin)
-Expire blood market post.
+
+Expire a blood market post.
 
 ---
 
 ## 7️⃣ Tips Module
 
 ### GET `/tips`
-List published tips.
+
+Retrieve published donation tips.
 
 ### POST `/tips` (Admin)
-Create tip.
+
+Create a new tip.
 
 ### DELETE `/tips/:id` (Admin)
+
 Unpublish tip (soft delete).
 
 ---
@@ -222,12 +259,15 @@ Unpublish tip (soft delete).
 ## 8️⃣ Testimonials Module
 
 ### GET `/testimonials`
-List approved testimonials.
+
+Retrieve approved testimonials.
 
 ### POST `/testimonials` (Auth)
-Submit testimonial.
 
-**Body**
+Submit a testimonial.
+
+**Request Body**
+
 ```json
 {
   "content": "Great experience!",
@@ -236,6 +276,7 @@ Submit testimonial.
 ```
 
 ### PUT `/testimonials/admin/:id/approve` (Admin)
+
 Approve testimonial.
 
 ---
@@ -243,54 +284,67 @@ Approve testimonial.
 ## 9️⃣ Newsletter Module
 
 ### POST `/newsletter/subscribe`
-Subscribe email.
+
+Subscribe email to newsletter.
 
 ### POST `/newsletter/unsubscribe`
+
 Unsubscribe email.
 
 ### GET `/newsletter` (Admin)
-List subscribers.
+
+List all subscribers.
 
 ---
 
-## 🔟 Users (Admin Module)
+## 🔟 Users Module (Admin)
 
-### GET `/users` (Admin)
+### GET `/users`
+
 List all users.
 
-### PUT `/users/:id/role` (Admin)
+### PUT `/users/:id/role`
+
 Update user role.
 
-**Body**
+**Request Body**
+
 ```json
 {
   "role": "admin"
 }
 ```
 
-### DELETE `/users/:id` (Admin)
-Deactivate user (logical deactivation).
+### DELETE `/users/:id`
+
+Deactivate user (logical deletion).
 
 ---
 
 ## 🧪 Postman Testing Guide
 
 ### Step 1: Login
+
 ```
 POST /auth/login
 ```
+
 Save token in Postman:
+
 ```js
 pm.environment.set("token", pm.response.json().token);
 ```
 
-### Step 2: Use token
-Add header to protected routes:
+### Step 2: Use Token
+
+Add header to protected requests:
+
 ```
 Authorization: Bearer {{token}}
 ```
 
-### Recommended Test Order
+### Recommended Test Flow
+
 1. `/auth/login`
 2. `/profile`
 3. `/events`
@@ -304,12 +358,12 @@ Authorization: Bearer {{token}}
 
 ## ✅ Summary
 
-- Firebase handles **user registration & login**
-- Backend handles **authorization, roles, and business logic**
-- All deletes are **soft deletes**
-- Architecture is clean and production-ready
+* Firebase handles **authentication**
+* Backend handles **authorization & business logic**
+* Role-based access control (User / Admin)
+* Soft deletes for data integrity
+* Production-ready REST API architecture
 
 ---
 
 🚀 **Blood Donation Platform – Backend API**
-
